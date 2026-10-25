@@ -53,10 +53,13 @@ export function createDatabase(pool) {
       return true;
     },
     async previewProductSku(categoryId) {
-    const result = await pool.query(`with code as (select public.product_sku_prefix($1::uuid) as prefix)
-      select code.prefix || '-' || lpad((coalesce(c.last_number,0)+1)::text,
-        greatest(3,length((coalesce(c.last_number,0)+1)::text)),'0') as sku
-      from code left join public.product_sku_counters c on c.prefix=code.prefix`, [categoryId]);
+    const result = await pool.query(`with code as (select public.product_sku_prefix($1::uuid) as prefix),
+      current_max as (select code.prefix, coalesce(max(substring(p.sku from length(code.prefix)+2)::bigint),0) as last_number
+        from code left join public.products p on p.sku like code.prefix || '-%' and substring(p.sku from length(code.prefix)+2) ~ '^[0-9]+$'
+        group by code.prefix)
+      select current_max.prefix || '-' || lpad((current_max.last_number+1)::text,
+        greatest(3,length((current_max.last_number+1)::text)),'0') as sku
+      from current_max`, [categoryId]);
     return result.rows[0];
   }, async replaceHomeSlides(slides) {
     const client = pool.connect ? await pool.connect() : pool;

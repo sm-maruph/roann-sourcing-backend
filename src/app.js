@@ -157,7 +157,6 @@ export function createApp({db, config, auth, storage, limits = true}) {
     });
     app.post(route, async (req, res) => {
       const value = schema.parse(req.body);
-      if (table === 'products') delete value.sku;
       // Home slides are separate records; other pages replace their single banner.
       let query;
       if (table === 'hero_banners') {
@@ -170,7 +169,6 @@ export function createApp({db, config, auth, storage, limits = true}) {
     });
     app.put(`${route}/:id`, async (req, res) => {
       const value = schema.parse(req.body);
-      if (table === 'products') delete value.sku;
       if (table === 'hero_banners' && value.page !== 'home') value.slot = 'single';
       const row = checked(await db.from(table).update(value).eq('id', idSchema.parse(req.params.id)).select().maybeSingle());
       if (!row) throw fail(404, 'Record not found');

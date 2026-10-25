@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
-const migrations = ['001-schema.sql', '002-seed.sql', '003-enquiries.sql','004-category-roots.sql','005-home-slider.sql','006-product-skus.sql','007-media-cleanup.sql'];
+const migrations = ['001-schema.sql', '002-seed.sql', '003-enquiries.sql','004-category-roots.sql','005-home-slider.sql','006-product-skus.sql','007-media-cleanup.sql','008-product-sku-reuse.sql'];
 const stripTransactions = sql => sql.replace(/^begin;\s*$/gmi, '').replace(/^commit;\s*$/gmi, '');
 const sections = [];
 for (const file of migrations) sections.push(`-- ${file}\n${stripTransactions(await readFile(new URL(`../db/${file}`, import.meta.url), 'utf8'))}`);

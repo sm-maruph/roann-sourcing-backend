@@ -456,6 +456,33 @@ end; $$;
 revoke all on function public.queue_removed_media(), public.media_is_referenced(text) from public;
 
 
+-- 008-product-sku-reuse.sql
+
+-- Allocate from SKUs that still exist. Deleted products no longer keep their
+-- old number reserved, so an empty group starts again at 001.
+create or replace function public.assign_product_sku() returns trigger
+language plpgsql set search_path = '' as $$
+declare
+  sku_prefix text;
+  allocated bigint;
+begin
+  if new.sku is not null and btrim(new.sku) <> '' then return new; end if;
+
+  sku_prefix := public.product_sku_prefix(new.category_id);
+  perform pg_advisory_xact_lock(hashtextextended(sku_prefix, 0));
+  select coalesce(max(substring(sku from length(sku_prefix)+2)::bigint), 0) + 1
+    into allocated
+    from public.products
+    where sku like sku_prefix || '-%'
+      and substring(sku from length(sku_prefix)+2) ~ '^[0-9]+$';
+  new.sku := sku_prefix || '-' || lpad(allocated::text, greatest(3, length(allocated::text)), '0');
+  return new;
+end;
+$$;
+
+revoke all on function public.assign_product_sku() from public;
+
+
 -- Current Supabase storage setup. Run after npm run db:migrate; local storage does not need this.
 -- Image files are public; uploads go through the backend.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -473,5 +500,5 @@ using (bucket_id = 'site-media');
 create table public.schema_migrations (name text primary key, applied_at timestamptz not null default now());
 revoke all on public.schema_migrations from public, anon, authenticated;
 alter table public.schema_migrations enable row level security;
-insert into public.schema_migrations(name) values ('001-schema.sql'), ('002-seed.sql'), ('003-enquiries.sql'), ('004-category-roots.sql'), ('005-home-slider.sql'), ('006-product-skus.sql'), ('007-media-cleanup.sql');
+insert into public.schema_migrations(name) values ('001-schema.sql'), ('002-seed.sql'), ('003-enquiries.sql'), ('004-category-roots.sql'), ('005-home-slider.sql'), ('006-product-skus.sql'), ('007-media-cleanup.sql'), ('008-product-sku-reuse.sql');
 commit;

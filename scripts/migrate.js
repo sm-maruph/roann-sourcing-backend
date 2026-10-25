@@ -17,7 +17,7 @@ try {
       console.log('Upgraded legacy Supabase admin authentication; content preserved.');
     } catch (error) { await client.query('rollback'); throw error; }
   }
-  for (const name of ['001-schema.sql','002-seed.sql','003-enquiries.sql','004-category-roots.sql','005-home-slider.sql','006-product-skus.sql','007-media-cleanup.sql']) {
+  for (const name of ['001-schema.sql','002-seed.sql','003-enquiries.sql','004-category-roots.sql','005-home-slider.sql','006-product-skus.sql','007-media-cleanup.sql','008-product-sku-reuse.sql']) {
     if ((await client.query('select name from public.schema_migrations where name=$1',[name])).rowCount) continue;
     const sql = await readFile(new URL(`../db/${name}`,import.meta.url),'utf8');
     await client.query('begin');
