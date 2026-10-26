@@ -40,6 +40,23 @@ export function createApp({db, config, auth, storage, limits = true}) {
   if (limits) app.use('/api', rateLimit({windowMs: 60000, limit: 240, standardHeaders: 'draft-8', legacyHeaders: false}));
   app.get('/api/health', (req, res) => res.json({status: 'ok'}));
   app.get('/api/config', (req, res) => res.json({auth: 'custom', loginUrl: '/api/auth/login'}));
+  app.get('/api/navigation/categories', async (req, res) => {
+    const categories = await readAll(db, 'categories');
+    const result = {};
+    for (const root of categories.filter(row => row.parent_id === null && row.is_active)) {
+      result[root.slug] = {
+        name: root.name,
+        categories: categories.filter(row => row.parent_id === root.id && row.is_active)
+          .map(row => ({
+            id: row.slug,
+            label: row.name,
+            subcategories: categories.filter(child => child.parent_id === row.id && child.is_active)
+              .map(child => ({id: child.slug, label: child.name})),
+          })),
+      };
+    }
+    res.set('Cache-Control', 'no-store').json(result);
+  });
   if (storage.root) app.use('/media', express.static(storage.root, {maxAge:'1y', immutable:true, index:false, dotfiles:'deny'}));
   const loginLimit = limits ? rateLimit({windowMs: 15 * 60000, limit: 10, standardHeaders:'draft-8', legacyHeaders:false}) : (req,res,next) => next();
   app.post('/api/auth/login', loginLimit, async (req,res) => {
